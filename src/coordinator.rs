@@ -31,8 +31,32 @@ pub async fn run_goal(hub: &Hub, brain: &Brain, coordinator_id: &str, goal: &str
         serde_json::json!({ "goal": goal, "by": coord_name }),
     ));
 
+    let specialists: Vec<_> = hub
+        .agents()
+        .into_iter()
+        .filter(|a| a.kind != "coordinator")
+        .collect();
+    if specialists.is_empty() {
+        let result = "No specialist agents on the marketplace yet. Spawn at least one on the \
+                      left — for example Foodie with capabilities `restaurants, menus` — then \
+                      run your goal again. The Coordinator recruits specialists; it does not do \
+                      the work itself."
+            .to_string();
+        hub.emit(Event::new(
+            "goal_done",
+            serde_json::json!({
+                "by": coord_name,
+                "goal": goal,
+                "result": result,
+                "unmet": ["<spawn specialists first>"],
+                "hired": [],
+            }),
+        ));
+        return result;
+    }
+
     // 1. DECOMPOSE.
-    let needs = decompose(hub, brain, goal).await;
+    let needs = decompose(hub, brain, coordinator_id, goal).await;
     hub.emit(Event::new(
         "plan",
         serde_json::json!({
@@ -95,33 +119,64 @@ pub async fn run_goal(hub: &Hub, brain: &Brain, coordinator_id: &str, goal: &str
     result
 }
 
-/// Break a goal into needed capabilities. Uses the LLM when available; otherwise
-/// matches the goal against capabilities actually offered on the marketplace, so
-/// it still recruits sensibly with no API key.
-async fn decompose(hub: &Hub, brain: &Brain, goal: &str) -> Vec<Need> {
-    if brain.is_live() {
-        let system = "You decompose a goal into the specialist capabilities needed to \
-                      accomplish it. Reply with ONLY a JSON array of objects \
-                      [{\"capability\":\"<short keyword>\",\"question\":\"<one question>\"}]. \
-                      Capabilities must be short searchable keywords (e.g. \"restaurants\", \
-                      \"unit testing\"), not sentences. 2-4 items.";
+/// Break a goal into needed capabilities. Uses the LLM when available, but only
+/// for capabilities specialists actually offer (never abstract meta-skills like
+/// "planning"). Falls back to word-overlap against the marketplace.
+async fn decompose(hub: &Hub, brain: &Brain, coordinator_id: &str, goal: &str) -> Vec<Need> {
+    let market = specialist_capabilities(hub);
+    if brain.is_live() && !market.is_empty() {
+        let caps_list = market.join(", ");
+        let system = format!(
+            "You decompose a goal into specialist capabilities needed to accomplish it. \
+             Reply with ONLY a JSON array of objects \
+             [{{\"capability\":\"<keyword>\",\"question\":\"<one question>\"}}]. \
+             You MUST pick capability values ONLY from this exact list: {caps_list}. \
+             Choose 2-4 items from that list that best fit the goal. Do not invent \
+             new capabilities or use meta-skills like planning or coordination."
+        );
         let prompt = format!("Goal: {goal}");
-        let raw = brain.think(system, &prompt, 500).await;
+        let raw = brain.think(&system, &prompt, 500).await;
         if let Some(needs) = parse_needs(&raw) {
-            if !needs.is_empty() {
-                return needs;
+            let recruitable = filter_recruitable(hub, coordinator_id, needs);
+            if !recruitable.is_empty() {
+                return recruitable;
             }
         }
-        // fall through to market-aware matching if parsing failed
+        // LLM returned nothing recruitable — shop the marketplace instead.
     }
-    decompose_from_market(hub, goal)
+    decompose_from_market(hub, coordinator_id, goal)
 }
 
-/// Brain-free decomposition: pick capabilities already on the marketplace that
+/// Capabilities offered by visitor-spawned specialists (not the coordinator).
+fn specialist_capabilities(hub: &Hub) -> Vec<String> {
+    let mut caps: Vec<String> = vec![];
+    for a in hub.agents() {
+        if a.kind == "coordinator" {
+            continue;
+        }
+        for c in &a.capabilities {
+            if !caps.contains(c) {
+                caps.push(c.clone());
+            }
+        }
+    }
+    caps.sort();
+    caps
+}
+
+/// Keep only needs that will match a specialist on the marketplace.
+fn filter_recruitable(hub: &Hub, coordinator_id: &str, needs: Vec<Need>) -> Vec<Need> {
+    needs
+        .into_iter()
+        .filter(|n| !hub.discover(&n.capability, Some(coordinator_id)).is_empty())
+        .collect()
+}
+
+/// Brain-free decomposition: pick capabilities specialists already offer that
 /// overlap the goal's words. Models "shopping the marketplace for what's there".
-fn decompose_from_market(hub: &Hub, goal: &str) -> Vec<Need> {
+fn decompose_from_market(hub: &Hub, coordinator_id: &str, goal: &str) -> Vec<Need> {
     let goal_words = words(goal);
-    let caps = hub.capability_index();
+    let caps = specialist_capabilities(hub);
     if caps.is_empty() {
         let first = goal.split_whitespace().next().unwrap_or("help").to_lowercase();
         return vec![Need {
@@ -143,6 +198,7 @@ fn decompose_from_market(hub: &Hub, goal: &str) -> Vec<Need> {
     };
     chosen
         .into_iter()
+        .filter(|c| !hub.discover(c, Some(coordinator_id)).is_empty())
         .take(4)
         .map(|c| Need {
             question: format!("For the goal '{goal}', help with the '{c}' part."),

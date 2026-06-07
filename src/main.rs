@@ -43,8 +43,33 @@ struct App {
     brain: Brain,
 }
 
+/// Load KEY=VALUE lines from `.env` in the project root (if present). Does not
+/// override variables already set in the environment.
+fn load_dotenv() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(".env");
+    let Ok(raw) = std::fs::read_to_string(path) else {
+        return;
+    };
+    for line in raw.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, val)) = line.split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        let val = val.trim().trim_matches('"').trim_matches('\'');
+        if !key.is_empty() && std::env::var(key).is_err() {
+            // SAFETY: called before any threads are spawned.
+            unsafe { std::env::set_var(key, val) };
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
+    load_dotenv();
     tracing_subscriber::fmt().with_target(false).init();
 
     let app_state = App {
@@ -245,9 +270,12 @@ mod tests {
         hub.add_agent(make("Docs", "docs,documentation"));
 
         let result = super::coordinator::run_goal(
-            &hub, &brain, &coord.id,
+            &hub,
+            &brain,
+            &coord.id,
             "Build an endpoint, add testing, and write docs",
-        ).await;
+        )
+        .await;
         assert!(!result.is_empty());
 
         let hired: Vec<String> = hub.history().into_iter()
@@ -260,5 +288,49 @@ mod tests {
         for who in ["Backend", "Tester", "Docs"] {
             assert!(hired.contains(&who.to_string()), "expected to hire {who}, hired {hired:?}");
         }
+    }
+
+    fn make_coordinator(caps: &str) -> Agent {
+        let mut a = make("Coordinator", caps);
+        a.kind = "coordinator".to_string();
+        a
+    }
+
+    #[tokio::test]
+    async fn coordinator_recruits_specialists_not_meta_capabilities() {
+        let hub = Hub::new();
+        let brain = super::brain::Brain::new();
+        let coord = hub.add_agent(make_coordinator("planning,coordination"));
+        hub.add_agent(make("Foodie", "restaurants,menus,dining"));
+        hub.add_agent(make("Scheduler", "calendar,availability"));
+        hub.add_agent(make("Gifts", "gifts,wishlist"));
+
+        let result = super::coordinator::run_goal(
+            &hub,
+            &brain,
+            &coord.id,
+            "plan a surprise birthday dinner",
+        )
+        .await;
+
+        assert!(
+            !result.contains("Couldn't recruit anyone"),
+            "should hire specialists, got: {result}"
+        );
+        let hired: Vec<String> = hub
+            .history()
+            .into_iter()
+            .filter(|e| e.event_type == "message")
+            .filter_map(|e| {
+                let m = e.data.get("message")?;
+                (m.get("kind")?.as_str()? == "request")
+                    .then(|| e.data.get("to_name")?.as_str().map(|s| s.to_string()))
+                    .flatten()
+            })
+            .collect();
+        assert!(
+            hired.iter().any(|n| n == "Foodie"),
+            "expected Foodie, hired {hired:?}"
+        );
     }
 }

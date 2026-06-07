@@ -57,10 +57,11 @@ function renderRoster() {
   }
 
   // capability hint under the goal box
-  const caps = [...new Set(list.flatMap((a) => a.capabilities))].sort();
-  capHintEl.innerHTML = caps.length
+  const humans = list.filter((a) => a.kind !== "coordinator");
+  const caps = [...new Set(humans.flatMap((a) => a.capabilities))].sort();
+  capHintEl.innerHTML = humans.length
     ? `online: ${caps.map((c) => `<b>${esc(c)}</b>`).join(" · ")}`
-    : `// no agents online — spawn one so the hive has someone to recruit.`;
+    : `// spawn a specialist on the left — the coordinator alone cannot fulfill goals.`;
 }
 
 rosterEl.addEventListener("click", async (e) => {
@@ -177,6 +178,15 @@ $("goalForm").addEventListener("submit", async (e) => {
 });
 
 // ---------------- bootstrap ----------------
+async function loadAgents() {
+  try {
+    const list = await (await fetch("/api/agents")).json();
+    agents.clear();
+    for (const a of list) agents.set(a.id, a);
+    renderRoster();
+  } catch (_) {}
+}
+
 async function loadHealth() {
   try {
     const h = await (await fetch("/api/health")).json();
@@ -202,5 +212,6 @@ function tickClock() { clockEl.textContent = stamp(); }
 tickClock();
 setInterval(tickClock, 1000);
 
+loadAgents();
 loadHealth();
 connect();
