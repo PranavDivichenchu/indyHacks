@@ -4,11 +4,12 @@
 //! that turns any goal into a team, and a live web UI.
 
 mod brain;
+mod coordinator;
 mod hub;
 mod models;
 
 fn main() {
-    println!("Hivemind — core hub + brain in place.");
+    println!("Hivemind — hub + brain + coordinator in place.");
 }
 
 #[cfg(test)]
@@ -71,6 +72,41 @@ mod tests {
             let out = b.think("You are Foodie, a restaurant expert.", "Suggest a venue.", 200).await;
             assert!(out.contains("Foodie"), "mock reply should be flavored by speaker: {out}");
             assert!(!out.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn coordinator_recruits_from_the_marketplace() {
+        let hub = Hub::new();
+        let brain = super::brain::Brain::new(); // mock unless a key is present
+        let coord = hub.add_agent(make("Coordinator", "planning,coordination"));
+        hub.add_agent(make("Backend", "endpoint,server,api"));
+        hub.add_agent(make("Tester", "testing,qa"));
+        hub.add_agent(make("Docs", "docs,documentation"));
+
+        let result = super::coordinator::run_goal(
+            &hub,
+            &brain,
+            &coord.id,
+            "Build an endpoint, add testing, and write docs",
+        )
+        .await;
+        assert!(!result.is_empty());
+
+        // The feed should show requests routed to the three providers.
+        let hired: Vec<String> = hub
+            .history()
+            .into_iter()
+            .filter(|e| e.event_type == "message")
+            .filter_map(|e| {
+                let m = e.data.get("message")?;
+                (m.get("kind")?.as_str()? == "request")
+                    .then(|| e.data.get("to_name")?.as_str().map(|s| s.to_string()))
+                    .flatten()
+            })
+            .collect();
+        for who in ["Backend", "Tester", "Docs"] {
+            assert!(hired.contains(&who.to_string()), "expected to hire {who}, hired {hired:?}");
         }
     }
 }
