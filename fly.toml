@@ -1,0 +1,23 @@
+# Fly.io deploy config for Hivemind.
+#   fly launch --no-deploy        # once, to create the app (or edit app name)
+#   fly secrets set GEMINI_API_KEY=...   # optional, enables real LLM answers
+#   fly deploy
+app = "hivemind"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
