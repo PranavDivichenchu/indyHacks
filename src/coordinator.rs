@@ -131,10 +131,11 @@ fn decompose_from_market(hub: &Hub, goal: &str) -> Vec<Need> {
     }
     let mut scored: Vec<(usize, String)> = caps
         .into_iter()
-        .map(|c| (words(&c).intersection(&goal_words).count(), c))
+        .map(|c| (capability_score(&c, &goal_words), c))
         .collect();
     scored.sort_by(|a, b| b.0.cmp(&a.0));
-    let overlapping: Vec<String> = scored.iter().filter(|(s, _)| *s > 0).map(|(_, c)| c.clone()).collect();
+    let overlapping: Vec<String> =
+        scored.iter().filter(|(s, _)| *s > 0).map(|(_, c)| c.clone()).collect();
     let chosen = if overlapping.is_empty() {
         scored.into_iter().map(|(_, c)| c).collect::<Vec<_>>()
     } else {
@@ -177,6 +178,25 @@ async fn assemble(brain: &Brain, goal: &str, parts: &[(String, String, String)],
 }
 
 // ----------------------------- helpers ----------------------------------- //
+
+/// Score a capability against a goal's words. We count overlaps where either
+/// token is a prefix of the other (and ≥4 chars), so "test" matches "testing"
+/// and "document" matches "documentation" — making keyless decomposition land
+/// far more often without an LLM.
+fn capability_score(capability: &str, goal_words: &std::collections::HashSet<String>) -> usize {
+    let cap_words = words(capability);
+    let mut score = 0;
+    for cw in &cap_words {
+        for gw in goal_words {
+            if cw == gw {
+                score += 2;
+            } else if cw.len() >= 4 && gw.len() >= 4 && (cw.starts_with(gw) || gw.starts_with(cw)) {
+                score += 1;
+            }
+        }
+    }
+    score
+}
 
 fn words(text: &str) -> std::collections::HashSet<String> {
     text.chars()
