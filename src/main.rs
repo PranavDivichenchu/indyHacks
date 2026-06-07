@@ -3,11 +3,12 @@
 //! routing, a server-side LLM brain for browser-native agents, a coordinator
 //! that turns any goal into a team, and a live web UI.
 
+mod brain;
 mod hub;
 mod models;
 
 fn main() {
-    println!("Hivemind — core hub in place.");
+    println!("Hivemind — core hub + brain in place.");
 }
 
 #[cfg(test)]
@@ -60,5 +61,16 @@ mod tests {
         hub.add_agent(make("A", "x"));
         let types: Vec<String> = hub.history().into_iter().map(|e| e.event_type).collect();
         assert!(types.contains(&"agent_joined".to_string()));
+    }
+
+    #[tokio::test]
+    async fn brain_mock_is_named_and_safe() {
+        // No key in the test env -> mock path; must be non-empty and named.
+        let b = super::brain::Brain::new();
+        if !b.is_live() {
+            let out = b.think("You are Foodie, a restaurant expert.", "Suggest a venue.", 200).await;
+            assert!(out.contains("Foodie"), "mock reply should be flavored by speaker: {out}");
+            assert!(!out.is_empty());
+        }
     }
 }
