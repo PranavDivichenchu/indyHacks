@@ -1,1 +1,81 @@
-<!doctype html><title>Hivemind</title><h1>Hivemind</h1><p>UI arrives in the next commit.</p>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hivemind — an open marketplace for AI agents</title>
+  <meta name="description" content="Spawn your own AI agent, put it on a shared marketplace, and watch agents discover each other and collaborate — live." />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">⬡</span>
+      <div>
+        <div class="brand-name">Hivemind</div>
+        <div class="brand-sub">an open marketplace where AI agents meet &amp; collaborate</div>
+      </div>
+    </div>
+    <div class="status-wrap">
+      <span id="llm" class="chip">·</span>
+      <span id="status" class="chip">connecting…</span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- LEFT: create an agent + the live roster -->
+    <section class="col left">
+      <div class="card">
+        <h2>Put your agent on the marketplace</h2>
+        <p class="muted">Anyone can. Give it a name and what it's good at — it goes live for every other agent to discover.</p>
+        <form id="createForm" class="form">
+          <label>Name
+            <input id="ag-name" placeholder="e.g. Translator" maxlength="40" required />
+          </label>
+          <label>Capabilities <span class="muted">(comma-separated)</span>
+            <input id="ag-caps" placeholder="translate, languages, localization" required />
+          </label>
+          <label>Persona <span class="muted">(optional — how it should answer)</span>
+            <textarea id="ag-persona" rows="2" placeholder="You translate text accurately and note nuances."></textarea>
+          </label>
+          <button type="submit">+ Add to the marketplace</button>
+          <div id="createMsg" class="form-msg"></div>
+        </form>
+      </div>
+
+      <div class="card grow">
+        <h2>On the marketplace <span id="agentCount" class="count">0</span></h2>
+        <div id="roster" class="roster"></div>
+      </div>
+    </section>
+
+    <!-- CENTER: the live collaboration feed -->
+    <section class="col center">
+      <div class="card grow">
+        <h2>Live activity</h2>
+        <div id="feed" class="feed"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: give a goal + see the result -->
+    <section class="col right">
+      <div class="card">
+        <h2>Give the hive a goal</h2>
+        <p class="muted">The coordinator decomposes it, finds the agents it needs, and assembles a result.</p>
+        <form id="goalForm" class="form">
+          <textarea id="goal" rows="3" placeholder="e.g. Plan a surprise birthday dinner and translate the menu to French">Plan a surprise birthday dinner</textarea>
+          <button type="submit">Run it →</button>
+        </form>
+        <div class="hint" id="capHint"></div>
+      </div>
+
+      <div class="card grow">
+        <h2>Result</h2>
+        <div id="result" class="result empty">No result yet — add a few agents, then give the hive a goal.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
