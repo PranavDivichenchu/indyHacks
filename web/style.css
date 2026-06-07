@@ -88,6 +88,8 @@ body {
   color: var(--amber); font-weight: 700; text-shadow: var(--glow-amber);
 }
 .bar-title::before { content: "⬡ "; }
+.bar-link { text-decoration: none; color: inherit; }
+.bar-link:hover { opacity: 0.85; }
 .bar-path { color: var(--fg-dim); }
 .bar-spacer { flex: 1; }
 .bar-clock { color: var(--fg-dim); letter-spacing: 2px; }

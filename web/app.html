@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>hivemind ~ agent marketplace [tty]</title>
+  <meta name="description" content="Spawn an AI agent onto a shared marketplace and watch agents discover each other and collaborate — a live ops console." />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- CRT overlay: scanlines + flicker, purely decorative -->
+  <div class="crt" aria-hidden="true"></div>
+
+  <div class="screen">
+    <!-- ===== title bar, drawn like a tmux/term header ===== -->
+    <header class="bar">
+      <a href="/" class="bar-title bar-link">HIVEMIND</a>
+      <span class="bar-path">~/marketplace</span>
+      <span class="bar-spacer"></span>
+      <span id="llm" class="led">llm:?</span>
+      <span id="status" class="led">conn…</span>
+      <span class="bar-clock" id="clock">--:--:--</span>
+    </header>
+
+    <main class="panes">
+      <!-- ===== LEFT: roster + spawn, one scrolling column ===== -->
+      <section class="pane pane-side">
+        <div class="block">
+          <div class="block-hd"><span class="hd-mark">┌─</span> processes <span id="agentCount" class="num">[0]</span><span class="hd-fill"></span></div>
+          <div id="roster" class="roster"></div>
+        </div>
+
+        <div class="block block-form">
+          <div class="block-hd"><span class="hd-mark">┌─</span> spawn agent<span class="hd-fill"></span></div>
+          <form id="createForm" class="form">
+            <div class="field">
+              <label for="ag-name">name</label>
+              <div class="inwrap"><span class="caret">$</span><input id="ag-name" placeholder="translator" maxlength="40" autocomplete="off" required /></div>
+            </div>
+            <div class="field">
+              <label for="ag-caps">caps <span class="dim">// comma sep</span></label>
+              <div class="inwrap"><span class="caret">$</span><input id="ag-caps" placeholder="translate, languages, fr" autocomplete="off" required /></div>
+            </div>
+            <div class="field">
+              <label for="ag-persona">persona <span class="dim">// optional</span></label>
+              <textarea id="ag-persona" rows="2" placeholder="you translate accurately and note nuance."></textarea>
+            </div>
+            <button type="submit" class="btn">exec spawn ⏎</button>
+            <div id="createMsg" class="form-msg"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- ===== CENTER: the live log ===== -->
+      <section class="pane pane-main">
+        <div class="block grow">
+          <div class="block-hd"><span class="hd-mark">┌─</span> stdout <span class="dim">// live event log</span><span class="hd-fill"></span><span class="rec">●REC</span></div>
+          <div id="feed" class="feed">
+            <div class="logline boot dim">hivemind tty // waiting for events<span class="cursor">▮</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== RIGHT: goal + result ===== -->
+      <section class="pane pane-side">
+        <div class="block block-form">
+          <div class="block-hd"><span class="hd-mark">┌─</span> dispatch goal<span class="hd-fill"></span></div>
+          <form id="goalForm" class="form">
+            <div class="field">
+              <label for="goal">hive.run( )</label>
+              <textarea id="goal" rows="3" placeholder="plan a surprise birthday dinner and translate the menu to french">plan a surprise birthday dinner</textarea>
+            </div>
+            <button type="submit" class="btn btn-go">run ▶</button>
+            <div class="hint" id="capHint"></div>
+          </form>
+        </div>
+
+        <div class="block grow">
+          <div class="block-hd"><span class="hd-mark">┌─</span> result<span class="hd-fill"></span></div>
+          <div id="result" class="result empty">// stdout(result) is empty
+// spawn a few agents, then dispatch a goal.</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="statusline">
+      <span class="sl-block sl-mode">TTY</span>
+      <span class="sl-block" id="sl-agents">0 procs</span>
+      <span class="sl-fill"></span>
+      <span class="sl-block sl-dim">gemini-2.5-flash</span>
+      <span class="sl-block sl-dim">type a goal &amp; hit run</span>
+    </footer>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

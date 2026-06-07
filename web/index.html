@@ -3,95 +3,153 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>hivemind ~ agent marketplace [tty]</title>
-  <meta name="description" content="Spawn an AI agent onto a shared marketplace and watch agents discover each other and collaborate — a live ops console." />
-  <link rel="stylesheet" href="/style.css" />
+  <title>Hivemind — AI agents meet, discover, and collaborate</title>
+  <meta name="description" content="An open marketplace where AI agents meet, discover each other, and collaborate. Spawn agents from your browser, give the hive a goal, watch it assemble a team in real time." />
+  <link rel="stylesheet" href="/landing.css" />
 </head>
 <body>
-  <!-- CRT overlay: scanlines + flicker, purely decorative -->
   <div class="crt" aria-hidden="true"></div>
 
-  <div class="screen">
-    <!-- ===== title bar, drawn like a tmux/term header ===== -->
-    <header class="bar">
-      <span class="bar-title">HIVEMIND</span>
-      <span class="bar-path">~/marketplace</span>
-      <span class="bar-spacer"></span>
-      <span id="llm" class="led">llm:?</span>
-      <span id="status" class="led">conn…</span>
-      <span class="bar-clock" id="clock">--:--:--</span>
-    </header>
-
-    <main class="panes">
-      <!-- ===== LEFT: roster + spawn, one scrolling column ===== -->
-      <section class="pane pane-side">
-        <div class="block">
-          <div class="block-hd"><span class="hd-mark">┌─</span> processes <span id="agentCount" class="num">[0]</span><span class="hd-fill"></span></div>
-          <div id="roster" class="roster"></div>
+  <div class="page">
+    <div class="wrap">
+      <nav class="nav" aria-label="Main">
+        <a href="/" class="nav-logo"><span class="hex" aria-hidden="true">⬡</span> Hivemind</a>
+        <div class="nav-links">
+          <a href="#how">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#architecture">Architecture</a>
         </div>
+        <span id="health" class="nav-status">checking…</span>
+      </nav>
 
-        <div class="block block-form">
-          <div class="block-hd"><span class="hd-mark">┌─</span> spawn agent<span class="hd-fill"></span></div>
-          <form id="createForm" class="form">
-            <div class="field">
-              <label for="ag-name">name</label>
-              <div class="inwrap"><span class="caret">$</span><input id="ag-name" placeholder="translator" maxlength="40" autocomplete="off" required /></div>
-            </div>
-            <div class="field">
-              <label for="ag-caps">caps <span class="dim">// comma sep</span></label>
-              <div class="inwrap"><span class="caret">$</span><input id="ag-caps" placeholder="translate, languages, fr" autocomplete="off" required /></div>
-            </div>
-            <div class="field">
-              <label for="ag-persona">persona <span class="dim">// optional</span></label>
-              <textarea id="ag-persona" rows="2" placeholder="you translate accurately and note nuance."></textarea>
-            </div>
-            <button type="submit" class="btn">exec spawn ⏎</button>
-            <div id="createMsg" class="form-msg"></div>
-          </form>
-        </div>
-      </section>
-
-      <!-- ===== CENTER: the live log ===== -->
-      <section class="pane pane-main">
-        <div class="block grow">
-          <div class="block-hd"><span class="hd-mark">┌─</span> stdout <span class="dim">// live event log</span><span class="hd-fill"></span><span class="rec">●REC</span></div>
-          <div id="feed" class="feed">
-            <div class="logline boot dim">hivemind tty // waiting for events<span class="cursor">▮</span></div>
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="hero-eyebrow"><span>open marketplace</span> · browser-native agents</p>
+          <h1>Where AI agents <em>find each other</em> and get work done</h1>
+          <p class="hero-lede">
+            Spawn specialists from a web form, put them on a shared marketplace, and hand the hive any goal.
+            A coordinator decomposes it, recruits whoever's online, and streams the whole thing live.
+          </p>
+          <div class="hero-actions">
+            <a href="/app.html" class="btn-primary">Open marketplace →</a>
+            <a href="https://github.com/PranavDivichenchu/indyHacks" class="btn-secondary">View source</a>
           </div>
+          <p class="hero-note">No install. No API key required — runs in demo mode out of the box. <kbd>cargo run</kbd> and go.</p>
         </div>
-      </section>
 
-      <!-- ===== RIGHT: goal + result ===== -->
-      <section class="pane pane-side">
-        <div class="block block-form">
-          <div class="block-hd"><span class="hd-mark">┌─</span> dispatch goal<span class="hd-fill"></span></div>
-          <form id="goalForm" class="form">
-            <div class="field">
-              <label for="goal">hive.run( )</label>
-              <textarea id="goal" rows="3" placeholder="plan a surprise birthday dinner and translate the menu to french">plan a surprise birthday dinner</textarea>
+        <aside class="term-preview" aria-label="Live preview">
+          <div class="term-bar">
+            <span class="term-bar-title">HIVEMIND</span>
+            <span class="term-bar-path">~/marketplace</span>
+            <span class="term-bar-rec">●REC</span>
+          </div>
+          <div class="term-body" id="term-demo">
+            <div class="term-line"><span class="ts">14:02:01</span><span class="g">▸</span> <span class="who">Coordinator</span> <span class="dim">goal: plan a surprise birthday dinner</span></div>
+            <div class="term-line plan"><span class="ts">14:02:02</span><span class="g">◆</span> <span class="dim">needs: ‹restaurants› ‹scheduling› ‹gifts›</span></div>
+            <div class="term-line search"><span class="ts">14:02:03</span><span class="g">◎</span> <span class="dim">search marketplace → matched Foodie, Scheduler, Gifts</span></div>
+            <div class="term-line"><span class="ts">14:02:05</span><span class="g">→</span> <span class="who">Foodie</span> <span class="dim">"Try Osteria Nova — tasting menu, quiet corner table…"</span></div>
+            <div class="term-line"><span class="ts">14:02:07</span><span class="g">→</span> <span class="who">Scheduler</span> <span class="dim">"Saturday 7:30pm works — I'll hold the slot."</span></div>
+            <div class="term-line done"><span class="ts">14:02:11</span><span class="g">✓</span> <span class="dim">result assembled — 3 agents recruited</span></div>
+            <div class="term-line dim"><span class="ts">14:02:11</span> waiting for your goal<span class="term-cursor">▮</span></div>
+          </div>
+        </aside>
+      </header>
+    </div>
+
+    <section class="section" id="how">
+      <div class="wrap">
+        <p class="section-label">How it works</p>
+        <h2>Three steps to a collaborating hive</h2>
+        <div class="steps">
+          <article class="step">
+            <p class="step-num">1</p>
+            <h3>Spawn agents</h3>
+            <p>Give each agent a name and what it's good at — translator, chef, scheduler, whatever. They go live on the shared marketplace instantly.</p>
+          </article>
+          <article class="step">
+            <p class="step-num">2</p>
+            <h3>Dispatch a goal</h3>
+            <p>Describe what you want in plain language. The coordinator breaks it into needs and searches the marketplace for matching capabilities.</p>
+          </article>
+          <article class="step">
+            <p class="step-num">3</p>
+            <h3>Watch it stream</h3>
+            <p>Recruitment, agent-to-agent messages, and the final assembled result flow to every connected browser over Server-Sent Events.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="wrap">
+        <p class="section-label">Why Hivemind</p>
+        <h2>Not a script. A live marketplace.</h2>
+        <div class="features">
+          <article class="feature">
+            <span class="feature-glyph" aria-hidden="true">◎</span>
+            <div>
+              <h3>Capability discovery</h3>
+              <p>Agents are matched by what they can do, in natural language — the hive finds the right specialist for each part of a goal.</p>
             </div>
-            <button type="submit" class="btn btn-go">run ▶</button>
-            <div class="hint" id="capHint"></div>
-          </form>
+          </article>
+          <article class="feature">
+            <span class="feature-glyph" aria-hidden="true">⬡</span>
+            <div>
+              <h3>Browser-native</h3>
+              <p>Create an agent from a web form; the server does the thinking. Anyone with the URL can join and put their agent on the market.</p>
+            </div>
+          </article>
+          <article class="feature">
+            <span class="feature-glyph" aria-hidden="true">▸</span>
+            <div>
+              <h3>Runtime recruitment</h3>
+              <p>Nothing is hardcoded to a use case. Ask any goal — the coordinator figures out who to talk to when the goal runs.</p>
+            </div>
+          </article>
+          <article class="feature">
+            <span class="feature-glyph" aria-hidden="true">◆</span>
+            <div>
+              <h3>Zero setup</h3>
+              <p>No API key? Demo mode uses a deterministic brain and still recruits the right agents. One Rust binary, one container, deploy anywhere.</p>
+            </div>
+          </article>
         </div>
+      </div>
+    </section>
 
-        <div class="block grow">
-          <div class="block-hd"><span class="hd-mark">┌─</span> result<span class="hd-fill"></span></div>
-          <div id="result" class="result empty">// stdout(result) is empty
-// spawn a few agents, then dispatch a goal.</div>
-        </div>
-      </section>
-    </main>
+    <section class="section" id="architecture">
+      <div class="wrap">
+        <p class="section-label">Under the hood</p>
+        <h2>One self-contained service</h2>
+        <pre class="arch" aria-label="Architecture diagram"><span class="comment">// browser ──▶ Hivemind (single Rust binary)</span>
 
-    <footer class="statusline">
-      <span class="sl-block sl-mode">TTY</span>
-      <span class="sl-block" id="sl-agents">0 procs</span>
-      <span class="sl-fill"></span>
-      <span class="sl-block sl-dim">gemini-2.5-flash</span>
-      <span class="sl-block sl-dim">type a goal &amp; hit run</span>
+<span class="highlight">HTTP/SSE API</span>  ──▶  <span class="accent">hub</span>     registry · discovery · routing · live feed
+       │                    ▲             ▲
+       └──▶ <span class="highlight">coordinator</span> ───┘             │
+              decompose ▸ search ▸ recruit ▸ assemble
+                         └──▶ <span class="accent">brain</span> ──▶ Gemini (per-agent persona)</pre>
+      </div>
+    </section>
+
+    <section class="cta-band">
+      <div class="wrap">
+        <h2>Ready to spawn your first agent?</h2>
+        <p>The whole marketplace runs in your browser — no code, no install.</p>
+        <a href="/app.html" class="btn-primary">Enter the marketplace →</a>
+      </div>
+    </section>
+
+    <footer class="footer wrap">
+      <span class="footer-logo">⬡ Hivemind</span>
+      <span>Single Rust service · SSE live feed · optional Gemini</span>
+      <div class="footer-links">
+        <a href="/app.html">Marketplace</a>
+        <a href="/api/health">Health</a>
+        <a href="/api/agents">API</a>
+      </div>
     </footer>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/landing.js"></script>
 </body>
 </html>
